@@ -1,0 +1,246 @@
+#include <raylib.h>
+#include <raymath.h>
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <algorithm>
+#include <cstdlib>
+
+#define RAYGUI_IMPLEMENTATION
+#include <raygui.h>
+
+#undef RAYGUI_IMPLEMENTATION
+
+#include "player_img.h"
+#include "tomato_img.h"
+#include "skull_img.h"
+
+#if defined(PLATFORM_WEB)
+    #include <emscripten/emscripten.h>
+#endif
+
+
+const int WIDTH = 850;
+const int HEIGHT = 450;
+
+void UpdateDrawFrame();
+
+int x = WIDTH/2-50/2;
+
+enum GAME_STATE
+{
+	MENU,
+	GAME,
+	DEATH_SCREEN,
+	TOMATO_INFO
+};
+
+void DrawAlien(int x, int y, Color color)
+{
+	DrawRectangle(x, y, 50, 50, color);
+	DrawRectangle(x+10, y+30, 30, 10, BLACK);
+	DrawRectangle(x+10, y+5, 10, 10, BLACK);
+	DrawRectangle(x+30, y+5, 10, 10, BLACK);
+}
+
+int delay = 0;
+Image player_img;
+Texture2D player;
+std::vector<Vector2> tomatoes;
+
+Image tomato_img;
+Texture2D tomato_tex;
+
+Image skull_img;
+Texture2D skull_tex;
+
+GAME_STATE game_state;
+
+int main(void)
+{
+	InitWindow(WIDTH, HEIGHT, "Israel Tomato Game");
+	game_state = MENU;
+
+	player_img.width = PLAYER_IMG_WIDTH;
+	player_img.height = PLAYER_IMG_HEIGHT;
+	player_img.format = PLAYER_IMG_FORMAT;
+	player_img.data = PLAYER_IMG_DATA;
+	player_img.mipmaps = 1;
+	player = LoadTextureFromImage(player_img);
+	player.width = 40;
+	player.height = 65;
+
+	tomato_img.width = TOMATO_IMG_WIDTH;
+	tomato_img.height = TOMATO_IMG_HEIGHT;
+	tomato_img.format = TOMATO_IMG_FORMAT;
+	tomato_img.data = TOMATO_IMG_DATA;
+	tomato_img.mipmaps = 1;
+	tomato_tex = LoadTextureFromImage(tomato_img);
+	tomato_tex.width = 40;
+	tomato_tex.height = 40;
+
+	skull_img.width = SKULL_IMG_WIDTH;
+	skull_img.height = SKULL_IMG_HEIGHT;
+	skull_img.format = SKULL_IMG_FORMAT;
+	skull_img.data = SKULL_IMG_DATA;
+	skull_img.mipmaps = 1;
+	skull_tex = LoadTextureFromImage(skull_img);
+	skull_tex.width = 40;
+	skull_tex.height = 56;
+
+	#if defined(PLATFORM_WEB)
+    	emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
+	#else
+		SetTargetFPS(60);   // Set our game to run at 60 frames-per-second
+		//--------------------------------------------------------------------------------------
+
+		// Main game loop
+		while (!WindowShouldClose())    // Detect window close button or ESC key
+		{
+			UpdateDrawFrame();
+		}
+	#endif
+
+	CloseWindow();
+
+	return 0;
+}
+
+int points = 0;
+
+void UpdateDrawFrame()
+{
+
+	BeginDrawing();
+	
+	ClearBackground(RAYWHITE);
+
+	if (game_state == MENU)
+	{
+		DrawText("Tomato Game", WIDTH/2-MeasureText("Tomato Game", 40)/2, 50, 40, BLACK);
+		DrawTexture(tomato_tex, MeasureText("Tomato Game", 40)-15, 45, WHITE);
+		DrawTexture(tomato_tex, WIDTH-MeasureText("Tomato Game", 40)-25, 45, WHITE);
+
+		DrawText("Made by Jesse Sher with Raylib and C++", WIDTH/2-MeasureText("Made by Jesse Sher with Raylib and C++", 20)/2, 100, 20, BLACK);
+		if (GuiButton(Rectangle{
+			WIDTH/2-120/2, 150, 120, 45
+		}, "#119# PLAY!"))
+		{
+			tomatoes.clear();
+			points = 0;
+			game_state = GAME;
+		}
+		if (GuiButton(Rectangle{
+			WIDTH/2-120/2, 200, 120, 45
+		}, "#193# Tomatoes Info"))
+		{
+			game_state = TOMATO_INFO;
+		}
+	}
+	else if (game_state == GAME)
+	{
+		delay++;
+		if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))
+			x -= 600 * GetFrameTime();
+		else if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
+			x += 600 * GetFrameTime();
+
+		if (delay >= GetFPS())
+		{
+			tomatoes.push_back(Vector2{ (float)GetRandomValue(50, WIDTH-50), -50} );
+			delay = 0;
+		}
+
+		DrawTexture(player, x, HEIGHT-100, WHITE);
+		std::string format_score = "Score: " + std::to_string(points);
+
+		DrawText(format_score.c_str(), WIDTH/2-MeasureText(format_score.c_str(), 20)/2, 100, 20, BLACK);
+
+		for (int i = 0; i < tomatoes.size(); i++)
+		{
+			DrawTextureV(tomato_tex, tomatoes[i], WHITE);
+			tomatoes[i].y += 300 * GetFrameTime();
+
+			if (CheckCollisionRecs(
+				Rectangle{
+					tomatoes[i].x, tomatoes[i].y, 40, 40
+				},
+				Rectangle{
+					(float)x, HEIGHT-100, 40, 65
+				}
+			))
+			{
+				tomatoes.erase(tomatoes.begin() + i);
+				points++;
+			}
+
+			if (tomatoes[i].y > HEIGHT)
+			{
+				game_state = DEATH_SCREEN;
+			}
+		}
+	}
+	else if (game_state == DEATH_SCREEN)
+	{	
+		if (GuiButton(
+			Rectangle { WIDTH/2-120/2, 250, 120, 45 },
+			"#185# Home"
+		))
+		{
+			game_state = MENU;
+		}
+		DrawText("YOU LOST!", WIDTH/2-MeasureText("YOU LOST!", 40)/2, 50, 40, BLACK);
+		DrawTexture(skull_tex, MeasureText("YOU LOST!", 40)-60, 45, WHITE);
+		DrawTexture(skull_tex, WIDTH-MeasureText("YOU LOST!", 40)+25, 45, WHITE);
+
+		std::string format_score = "Score: " + std::to_string(points);
+
+		DrawText(format_score.c_str(), WIDTH/2-MeasureText(format_score.c_str(), 20)/2, 100, 20, BLACK);
+	}
+	else if (game_state == TOMATO_INFO)
+	{
+		DrawText("Tomatoes Info", WIDTH/2-MeasureText("Tomatoes Info", 40)/2, 50, 40, BLACK);
+		DrawTexture(tomato_tex, MeasureText("Tomatoes Info", 40)-60, 45, WHITE);
+		DrawTexture(tomato_tex, WIDTH-MeasureText("Tomatoes Info", 40)+25, 45, WHITE);
+		DrawText(
+			"Cherry Tomatoes are a delicious type of tomato",
+			WIDTH/2-MeasureText("Cherry Tomatoes are a delicious type of tomato", 20)/2,
+			150, 20, BLACK
+		);
+		DrawText(
+			"that not many people know where they came from.",
+			WIDTH/2-MeasureText("that not many people know where they came from.", 20)/2,
+			180, 20, BLACK
+		);
+		DrawText(
+			"There roots originate from Israel no pun intended.",
+			WIDTH/2-MeasureText("There roots originate from Israel no pun intended.", 20)/2,
+			210, 20, BLACK
+		);
+		DrawText(
+			"It was invented by Israeli scientists and now",
+			WIDTH/2-MeasureText("It was invented by Israeli scientists and now", 20)/2,
+			240, 20, BLACK
+		);
+		DrawText(
+			"are one of the most sold tomatoes in the world.",
+			WIDTH/2-MeasureText("are one of the most sold tomatoes in the world.", 20)/2,
+			270, 20, BLACK
+		);
+		DrawText(
+			"We now consume over 182 million tons of tomatoes a year.",
+			WIDTH/2-MeasureText("We now consume over 182 million tons of tomatoes a year.", 20)/2,
+			300, 20, BLACK
+		);
+
+		if (GuiButton(
+			Rectangle { WIDTH/2-120/2, 350, 120, 45 },
+			"#185# Home"
+		))
+		{
+			game_state = MENU;
+		}
+	}
+
+	EndDrawing();
+}
