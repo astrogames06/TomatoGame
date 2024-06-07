@@ -13,6 +13,7 @@
 
 #include "player_img.h"
 #include "tomato_img.h"
+#include "bad_tomato_img.h"
 #include "skull_img.h"
 
 #if defined(PLATFORM_WEB)
@@ -46,10 +47,13 @@ void DrawAlien(int x, int y, Color color)
 int delay = 0;
 Image player_img;
 Texture2D player;
-std::vector<Vector2> tomatoes;
+std::vector<std::pair<Vector2, int>> tomatoes;
 
 Image tomato_img;
 Texture2D tomato_tex;
+
+Image bad_tomato_img;
+Texture2D bad_tomato_tex;
 
 Image skull_img;
 Texture2D skull_tex;
@@ -79,6 +83,15 @@ int main(void)
 	tomato_tex.width = 40;
 	tomato_tex.height = 40;
 
+	bad_tomato_img.width = BAD_TOMATO_IMG_WIDTH;
+	bad_tomato_img.height = BAD_TOMATO_IMG_HEIGHT;
+	bad_tomato_img.format = BAD_TOMATO_IMG_FORMAT;
+	bad_tomato_img.data = BAD_TOMATO_IMG_DATA;
+	bad_tomato_img.mipmaps = 1;
+	bad_tomato_tex = LoadTextureFromImage(bad_tomato_img);
+	bad_tomato_tex.width = 40;
+	bad_tomato_tex.height = 40;
+
 	skull_img.width = SKULL_IMG_WIDTH;
 	skull_img.height = SKULL_IMG_HEIGHT;
 	skull_img.format = SKULL_IMG_FORMAT;
@@ -87,6 +100,7 @@ int main(void)
 	skull_tex = LoadTextureFromImage(skull_img);
 	skull_tex.width = 40;
 	skull_tex.height = 56;
+
 
 	#if defined(PLATFORM_WEB)
     	emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
@@ -128,6 +142,7 @@ void UpdateDrawFrame()
 		{
 			tomatoes.clear();
 			points = 0;
+			x = WIDTH/2-50/2;
 			game_state = GAME;
 		}
 		if (GuiButton(Rectangle{
@@ -140,6 +155,7 @@ void UpdateDrawFrame()
 	else if (game_state == GAME)
 	{
 		delay++;
+		x = Clamp(x, 0, WIDTH-40);
 		if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))
 			x -= 600 * GetFrameTime();
 		else if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
@@ -147,7 +163,7 @@ void UpdateDrawFrame()
 
 		if (delay >= GetFPS())
 		{
-			tomatoes.push_back(Vector2{ (float)GetRandomValue(50, WIDTH-50), -50} );
+			tomatoes.push_back({ { (float)GetRandomValue(50, WIDTH-50), -50}, GetRandomValue(0, 5) });
 			delay = 0;
 		}
 
@@ -158,25 +174,45 @@ void UpdateDrawFrame()
 
 		for (int i = 0; i < tomatoes.size(); i++)
 		{
-			DrawTextureV(tomato_tex, tomatoes[i], WHITE);
-			tomatoes[i].y += 300 * GetFrameTime();
+			tomatoes[i].first.y += 300 * GetFrameTime();
+			std::cout << "bad: " << tomatoes[i].second << '\n';
+			if (tomatoes[i].second == 1)
+			{
+				DrawTextureV(bad_tomato_tex, tomatoes[i].first, WHITE);
 
-			if (CheckCollisionRecs(
-				Rectangle{
-					tomatoes[i].x, tomatoes[i].y, 40, 40
-				},
-				Rectangle{
-					(float)x, HEIGHT-100, 40, 65
+				if (CheckCollisionRecs(
+					Rectangle{
+						tomatoes[i].first.x, tomatoes[i].first.y, 40, 40
+					},
+					Rectangle{
+						(float)x, HEIGHT-100, 40, 65
+					}
+				))
+				{
+					game_state = DEATH_SCREEN;
 				}
-			))
-			{
-				tomatoes.erase(tomatoes.begin() + i);
-				points++;
 			}
-
-			if (tomatoes[i].y > HEIGHT)
+			else
 			{
-				game_state = DEATH_SCREEN;
+				DrawTextureV(tomato_tex, tomatoes[i].first, WHITE);
+
+				if (CheckCollisionRecs(
+					Rectangle{
+						tomatoes[i].first.x, tomatoes[i].first.y, 40, 40
+					},
+					Rectangle{
+						(float)x, HEIGHT-100, 40, 65
+					}
+				))
+				{
+					tomatoes.erase(tomatoes.begin() + i);
+					points++;
+				}
+
+				if (tomatoes[i].first.y > HEIGHT)
+				{
+					game_state = DEATH_SCREEN;
+				}
 			}
 		}
 	}
