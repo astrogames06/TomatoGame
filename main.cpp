@@ -60,10 +60,20 @@ Texture2D skull_tex;
 
 GAME_STATE game_state;
 
+
+char text[64] = "";
+bool editMode = false;
+
+std::ofstream data_file;
+
 int main(void)
 {
 	InitWindow(WIDTH, HEIGHT, "Israel Tomato Game");
 	game_state = MENU;
+	data_file.open("data.txt", std::ios::app);
+
+	if (!data_file)
+        return 1;
 
 	player_img.width = PLAYER_IMG_WIDTH;
 	player_img.height = PLAYER_IMG_HEIGHT;
@@ -217,13 +227,19 @@ void UpdateDrawFrame()
 		}
 	}
 	else if (game_state == DEATH_SCREEN)
-	{	
+	{
 		if (GuiButton(
 			Rectangle { WIDTH/2-120/2, 250, 120, 45 },
 			"#185# Home"
 		))
 		{
+			data_file << text << " : " << points << '\n';
 			game_state = MENU;
+		}
+		DrawText("ENTER NAME: ", WIDTH/2-MeasureText("ENTER NAME: ", 20)/2, 150, 20, BLACK);
+		if (GuiTextBox((Rectangle){ WIDTH/2-200/2, 185, 200, 35 }, text, 64, editMode))
+		{
+			editMode = !editMode;
 		}
 		DrawText("YOU LOST!", WIDTH/2-MeasureText("YOU LOST!", 40)/2, 50, 40, BLACK);
 		DrawTexture(skull_tex, MeasureText("YOU LOST!", 40)-60, 45, WHITE);
