@@ -235,6 +235,7 @@ void UpdateDrawFrame()
 		{
 			data_file << text << " : " << points << '\n';
 			game_state = MENU;
+			text[0] = '\0'; 
 		}
 		DrawText("ENTER NAME: ", WIDTH/2-MeasureText("ENTER NAME: ", 20)/2, 150, 20, BLACK);
 		if (GuiTextBox((Rectangle){ WIDTH/2-200/2, 185, 200, 35 }, text, 64, editMode))
