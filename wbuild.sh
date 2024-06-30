@@ -11,4 +11,4 @@ LIB_DIR="llib/"
 OUTPUT="index.html"
 
 # Build command
-$CC -o $OUTPUT main.cpp $LIB_DIR/libraylib.a $CFLAGS -I. -I $INCLUDE_DIR -L. -L $LIB_DIR $EMFLAGS
+$CC -o $OUTPUT main.cpp $LIB_DIR/libraylib.a $CFLAGS -I. -I $INCLUDE_DIR -L. -L $LIB_DIR -s EXPORTED_FUNCTIONS='["_main", "_SetHighScore"]' $EMFLAGS 

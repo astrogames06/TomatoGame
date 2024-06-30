@@ -59,6 +59,9 @@
         <p id="output" />
         <script>
             var Module = {
+                onRuntimeInitialized: function () {
+                    _SetHighScore(JSON.parse(localStorage.getItem("high_score")));
+                },
                 print: (function() {
                     var element = document.getElementById('output');
                     if (element) element.value = ''; // clear browser cache

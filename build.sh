@@ -2,7 +2,7 @@
 
 # Compiler options
 CC=g++
-CFLAGS="-O1 -Wall -std=c++17 -Wno-missing-braces"
+CFLAGS="-O1 -Wall -std=c++17 -Os -Wno-missing-braces"
 
 # Paths
 INCLUDE_DIR="include/"

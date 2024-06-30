@@ -16,8 +16,19 @@
 #include "bad_tomato_img.h"
 #include "skull_img.h"
 
+
+int high_score = 0;
 #if defined(PLATFORM_WEB)
     #include <emscripten/emscripten.h>
+
+	extern "C"
+	{
+		EMSCRIPTEN_KEEPALIVE
+		void SetHighScore(int x)
+		{
+			high_score = x;
+		}
+	}
 #endif
 
 
@@ -45,6 +56,7 @@ void DrawAlien(int x, int y, Color color)
 }
 
 int delay = 0;
+int bad_delay = 0;
 Image player_img;
 Texture2D player;
 std::vector<std::pair<Vector2, int>> tomatoes;
@@ -66,9 +78,20 @@ bool editMode = false;
 
 std::ofstream data_file;
 
+#if defined(PLATFORM_WEB)
+	EM_JS(void, SaveNum, (int  x), {
+		localStorage.setItem("high_score", x);
+	});
+
+	EM_JS(int, GetHighScore, (), {
+		return JSON.parse(localStorage.getItem("high_score"));
+	});
+#endif
+
 int main(void)
 {
 	InitWindow(WIDTH, HEIGHT, "Israel Tomato Game");
+	//ToggleFullscreen();
 	game_state = MENU;
 	data_file.open("data.txt", std::ios::app);
 
@@ -165,16 +188,32 @@ void UpdateDrawFrame()
 	else if (game_state == GAME)
 	{
 		delay++;
+		bad_delay++;
 		x = Clamp(x, 0, WIDTH-40);
 		if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))
 			x -= 600 * GetFrameTime();
 		else if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
 			x += 600 * GetFrameTime();
 
+		if (IsGamepadAvailable(0)) {
+            float axisValue = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+			
+
+            x += axisValue * 5;
+			for (int i = 0; i < GetGamepadAxisCount(0)*2; i++)
+				std::cout << i << " : " << GetGamepadAxisMovement(0, i) << '\n';
+        }
+
 		if (delay >= GetFPS())
 		{
-			tomatoes.push_back({ { (float)GetRandomValue(50, WIDTH-50), -50}, GetRandomValue(0, 5) });
+			tomatoes.push_back({ { (float)GetRandomValue(50, WIDTH-50), -50}, 0 });
 			delay = 0;
+		}
+
+		if (bad_delay >= GetFPS()/2)
+		{
+			tomatoes.push_back({ { (float)GetRandomValue(50, WIDTH-50), -50}, 1 });
+			bad_delay = 0;
 		}
 
 		DrawTexture(player, x, HEIGHT-100, WHITE);
@@ -184,8 +223,8 @@ void UpdateDrawFrame()
 
 		for (int i = 0; i < tomatoes.size(); i++)
 		{
-			tomatoes[i].first.y += 300 * GetFrameTime();
-			std::cout << "bad: " << tomatoes[i].second << '\n';
+			tomatoes[i].first.y += 400 * GetFrameTime();
+			//std::cout << "bad: " << tomatoes[i].second << '\n';
 			if (tomatoes[i].second == 1)
 			{
 				DrawTextureV(bad_tomato_tex, tomatoes[i].first, WHITE);
@@ -219,15 +258,26 @@ void UpdateDrawFrame()
 					points++;
 				}
 
-				if (tomatoes[i].first.y > HEIGHT)
-				{
-					game_state = DEATH_SCREEN;
-				}
+				// if (tomatoes[i].first.y > HEIGHT)
+				// {
+				// 	game_state = DEATH_SCREEN;
+				// }
 			}
 		}
 	}
 	else if (game_state == DEATH_SCREEN)
 	{
+		if (points > high_score)
+		{
+			#if defined(PLATFORM_WEB)
+				SaveNum(points);
+			#endif
+		}
+		// #if defined(PLATFORM_WEB)
+		// 	EM_ASM({
+		// 		alert(JSON.parse(localStorage.getItem("high_score")));
+		// 	});
+		// #endif
 		if (GuiButton(
 			Rectangle { WIDTH/2-120/2, 250, 120, 45 },
 			"#185# Home"
@@ -247,6 +297,12 @@ void UpdateDrawFrame()
 		DrawTexture(skull_tex, WIDTH-MeasureText("YOU LOST!", 40)+25, 45, WHITE);
 
 		std::string format_score = "Score: " + std::to_string(points);
+
+		#if defined(PLATFORM_WEB)
+			std::string format_high_score = "High Score: " + std::to_string(GetHighScore());
+
+			DrawText(format_high_score.c_str(), (WIDTH/2-MeasureText(format_high_score.c_str(), 20)/2), 120, 20, BLACK);
+		#endif
 
 		DrawText(format_score.c_str(), WIDTH/2-MeasureText(format_score.c_str(), 20)/2, 100, 20, BLACK);
 	}
